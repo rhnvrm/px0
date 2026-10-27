@@ -430,6 +430,7 @@ function openSelMenu(x, y, keep = (item) => true) {
   menu.replaceChildren();
   for (const item of SEL_MENU_ITEMS) {
     if (item.sel === 'bb-review' && !bbHandler) continue;
+    if (S.meta?.embedOrigin && (item.sel === 'thread' || item.sel === 'agent-edit')) continue;
     if (!keep(item)) continue;
     if (isPreview && item.forCode) continue;
     if (!isPreview && item.forPreview) continue;
