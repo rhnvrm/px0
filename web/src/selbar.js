@@ -36,6 +36,8 @@ let agentHandler = null;
 export function setAgentHandler(fn) { agentHandler = fn; }
 
 /* Threads (thread.js) hook in the same way. */
+let bbHandler = null;
+export function setBBHandler(fn) { bbHandler = fn; }
 let threadHandler = null;
 export function setThreadHandler(fn) { threadHandler = fn; }
 
@@ -366,6 +368,9 @@ export function runSelectionAction(act, triggerBtn = null, override = null) {
     const lineStr = target.l1 === target.l2 ? 'line ' + target.l1 : 'lines ' + target.l1 + '-' + target.l2;
     const snippet = '@' + path + ' ' + lineStr + '\n```' + ext + '\n' + text + '\n```';
     copyToClipboard(snippet, 'Copied', targetBtn);
+  } else if (act === 'bb-review') {
+    if (!bbHandler) return false;
+    bbHandler(target);
   } else if (act === 'agent-edit') {
     if (!agentHandler) return false;
     agentHandler(target);
@@ -404,6 +409,7 @@ export function openLineMenu(info, x, y) {
 // Exported so pr.js can append "Add Review Comment" in a PR review session
 // without selbar needing to know PR review exists.
 export const SEL_MENU_ITEMS = [
+  { sel: 'bb-review', label: 'Send to BB' },
   { sel: 'thread', label: 'Start Agent Thread', keys: 'Alt+T' },
   { sel: 'agent-edit', label: 'Edit Inline', keys: 'Alt+E' },
   { sel: 'copy-source', label: 'Copy Source', keys: 'Mod+C', forCode: true },
@@ -423,6 +429,7 @@ function openSelMenu(x, y, keep = (item) => true) {
 
   menu.replaceChildren();
   for (const item of SEL_MENU_ITEMS) {
+    if (item.sel === 'bb-review' && !bbHandler) continue;
     if (!keep(item)) continue;
     if (isPreview && item.forCode) continue;
     if (!isPreview && item.forPreview) continue;

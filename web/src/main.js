@@ -9,7 +9,7 @@ import { drawTree, treeEl, initTree, revealFile, refreshTree, collapseAllDirs, e
 import { initSearch } from './search.js';
 import { initOutline } from './outline.js';
 import { initPanels } from './panels.js';
-import { initInspector, showRightInspector } from './inspector.js';
+import { initInspector, showRightInspector, hideRightInspector } from './inspector.js';
 import { initCalls } from './calls.js';
 import { initFind } from './find.js';
 import { initPalette } from './palette.js';
@@ -32,6 +32,7 @@ import { initPRScope } from './prscope.js';
 import { initEditView } from './editview.js';
 import { initNewItem } from './newitem.js';
 import { initTips, startTipsAsync } from './tips.js';
+import { initBBEmbed } from './bb-embed.js';
 
 // Initialize all subsystems
 initRenderer();
@@ -93,13 +94,15 @@ initPRScope();
 
   measure();
   S.meta = await api('/api/meta');
+  initBBEmbed();
   if (S.meta.metrics) updateMetricsDisplay(S.meta.metrics);
   refreshLspMenu();
   updateSidebarToggleState();
   syncGitPanelMeta();
   applyAgentMeta();
   initPR();
-  showRightInspector(); // the right sidebar starts open, on Threads when there is a harness
+  if (S.meta.embedOrigin) hideRightInspector();
+  else showRightInspector(); // the right sidebar starts open, on Threads when there is a harness
   document.title = S.meta.name + ' - px0';
   $('#root-name').textContent = S.meta.name;
   $('#root-name').title = S.meta.root;
@@ -220,5 +223,5 @@ initPRScope();
   loadAgentAsync();
 
   // Load and asynchronously display tips
-  startTipsAsync();
+  if (!S.meta.embedOrigin) startTipsAsync();
 })();

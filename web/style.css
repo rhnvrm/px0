@@ -3786,3 +3786,9 @@ body.hide-git-gutter .g-git, body.hide-git-gutter [class*="git-"] { display: non
   color: var(--faint);
   border: 1px solid var(--line);
 }
+
+/* The BB tab already supplies navigation chrome; preserve room for code. */
+body.bb-embed #side { width:220px; }
+body.bb-embed .panel-head { flex-wrap:wrap; padding:7px 8px; }
+body.bb-embed .panel-actions { margin-left:0; }
+@media(max-width:600px) { body.bb-embed #side { width:165px; } body.bb-embed .panel-actions { gap:2px; } }

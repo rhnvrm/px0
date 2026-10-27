@@ -395,7 +395,7 @@ func (wb *workbench) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, wb.route("/w/")) {
 		// Proxied responses carry the child's own headers.
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
+		w.Header().Set("Content-Security-Policy", embeddingCSP())
 	}
 	if ui.Verbose {
 		start := time.Now()

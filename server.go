@@ -70,10 +70,10 @@ type Server struct {
 	lsp       *lspManager
 	tel       *telemetry.Service // nil in tests; Track is nil-safe
 	agent     *agentManager      // nil unless main wires editing for this session
-	threads   *threadManager    // nil unless editing is wired: threads run on the same harness
-	pr        *prSession        // nil unless main launched this process as `px0 pr ...`
-	diffBase  string            // ref /api/diff and /api/gutter diff against; "HEAD" unless in PR mode
-	prHeadSHA string            // PR mode only: the checked-out PR head commit. Frozen boundary between
+	threads   *threadManager     // nil unless editing is wired: threads run on the same harness
+	pr        *prSession         // nil unless main launched this process as `px0 pr ...`
+	diffBase  string             // ref /api/diff and /api/gutter diff against; "HEAD" unless in PR mode
+	prHeadSHA string             // PR mode only: the checked-out PR head commit. Frozen boundary between
 	// the PR's own diff (diffBase..prHeadSHA) and the reviewer's local edits
 	// since checkout (prHeadSHA..working tree); refreshed on Pull.
 	gitWatcher *GitWatcher
@@ -274,6 +274,9 @@ const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 
 // ServeHTTP delegates incoming HTTP requests to the configured ServeMux,
 // recording request timing and updating access timestamps.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !embeddingAccess(w, r) {
+		return
+	}
 	streamPath := s.routePath("/api/stream")
 	gitStreamPath := s.routePath("/api/git/stream")
 	metricsPath := s.routePath("/api/metrics")
@@ -313,7 +316,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var out http.ResponseWriter = rec
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
+	w.Header().Set("Content-Security-Policy", embeddingCSP())
 	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") && !isSSE {
 		w.Header().Set("Content-Encoding", "gzip")
 		w.Header().Add("Vary", "Accept-Encoding")
@@ -941,6 +944,7 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 		"metrics":     getProcessMetrics(s.lsp),
 		"version":     version,
 		"basePath":    s.BasePath(),
+		"embedOrigin": embedding.parentOrigin,
 		"workbench":   s.workbenchURL,
 		"agent":       s.agent.Name(),
 		"agentModel":  s.agent.Model(),
@@ -2583,7 +2587,7 @@ func localPost(w http.ResponseWriter, r *http.Request) bool {
 		host = h
 	}
 	host = strings.Trim(host, "[]")
-	if host != "localhost" && net.ParseIP(host) == nil {
+	if host != "localhost" && net.ParseIP(host) == nil && !embeddingPublicRequest(r) {
 		fail(w, http.StatusForbidden, "open px0 by IP address or localhost to set up language servers")
 		return false
 	}

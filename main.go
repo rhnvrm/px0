@@ -55,6 +55,8 @@ func main() {
 		noAgent      = flag.Bool("no-agent", false, "do not offer editing through a coding harness")
 		_            = flag.Bool("y", false, "answer yes to prompts (deprecated; PRs are always opened without prompt)")
 		_            = flag.Bool("yes", false, "answer yes to prompts (alias for -y)")
+		embedOrigin  = flag.String("embed-origin", "", "allow this exact parent HTTP(S) origin to embed px0 (requires PX0_ACCESS_TOKEN)")
+		publicOrigin = flag.String("public-origin", "", "exact browser-facing HTTP(S) origin for authenticated embedding behind a proxy")
 		basePathFlag = flag.String("base-path", "", "base URL path prefix to serve endpoints and assets from (e.g. /rev-123/)")
 		wbChild      = flag.Bool("workbench-child", false, "internal: run as a workspace of the px0 workbench")
 	)
@@ -63,6 +65,15 @@ func main() {
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+	if err := configureEmbedding(*embedOrigin, *publicOrigin, os.Getenv("PX0_ACCESS_TOKEN")); err != nil {
+		fatal(err)
+	}
+	if embedding.parentOrigin != "" {
+		if flag.NArg() != 1 {
+			fatal(fmt.Errorf("embedding requires one explicit workspace target"))
+		}
+		*noAgent, *noUpdate, *noTelemetry, *noOpen = true, true, true, true
+	}
 
 	if *noColor {
 		f := false
