@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -73,5 +74,47 @@ func TestEmbeddingAuthentication(t *testing.T) {
 	r.Header.Set("Authorization", "Bearer "+token)
 	if !embeddingAccess(httptest.NewRecorder(), r) {
 		t.Fatal("bearer rejected")
+	}
+}
+
+func TestEmbeddingCookiesCoexistAcrossLoopbackPorts(t *testing.T) {
+	old := embedding
+	defer func() { embedding = old }()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	origins := []string{"http://127.0.0.1:41001", "http://127.0.0.1:41002"}
+	for i, origin := range origins {
+		token := strings.Repeat(string(rune('a'+i)), 64)
+		if err := configureEmbedding("http://127.0.0.1:9999", origin, token); err != nil {
+			t.Fatal(err)
+		}
+		r := httptest.NewRequest("GET", origin+"/?px0_token="+token, nil)
+		w := httptest.NewRecorder()
+		embeddingAccess(w, r)
+		jar.SetCookies(r.URL, w.Result().Cookies())
+	}
+	for i, origin := range origins {
+		if err := configureEmbedding("http://127.0.0.1:9999", origin, strings.Repeat(string(rune('a'+i)), 64)); err != nil {
+			t.Fatal(err)
+		}
+		r := httptest.NewRequest("GET", origin+"/api/meta", nil)
+		for _, c := range jar.Cookies(r.URL) {
+			r.AddCookie(c)
+		}
+		if !embeddingAccess(httptest.NewRecorder(), r) {
+			t.Fatalf("viewer %s lost authentication after opening another port", origin)
+		}
+		// A sibling viewer's cookie alone must not authenticate this viewer.
+		r = httptest.NewRequest("GET", origin+"/api/meta", nil)
+		for _, c := range jar.Cookies(r.URL) {
+			if c.Name != embeddingCookieName() {
+				r.AddCookie(c)
+			}
+		}
+		if embeddingAccess(httptest.NewRecorder(), r) {
+			t.Fatal("accepted a sibling viewer's cookie")
+		}
 	}
 }

@@ -12,6 +12,8 @@ request requires a bearer token or authenticated session cookie; an initial
 HTTPS cookies are Secure, HttpOnly and partitioned. Serve behind authenticated
 BB Connect; never configure wildcard origins. Embedding disables native agent
 execution, updates, and telemetry. File/Git editing remains available.
+Cookie names are scoped to the public origin so local viewers on different
+loopback ports can authenticate concurrently.
 
 The frontend exchanges messages only with the configured parent origin:
 `px0:selection` carries a selected path, line range and bounded snippet;

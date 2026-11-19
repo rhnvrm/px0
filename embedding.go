@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
 	"fmt"
 	"net/http"
@@ -45,6 +46,13 @@ func embeddingPublicRequest(r *http.Request) bool {
 	return r.Host == u.Host && r.Header.Get("Origin") == embedding.publicOrigin
 }
 
+func embeddingCookieName() string {
+	// Cookies are scoped by hostname and path, never by port. Give each
+	// viewer origin its own name so loopback viewers can coexist.
+	id := sha256.Sum256([]byte(embedding.publicOrigin))
+	return fmt.Sprintf("px0_embed_%x", id[:12])
+}
+
 func embeddingAccess(w http.ResponseWriter, r *http.Request) bool {
 	if embedding.token == "" {
 		return true
@@ -61,7 +69,7 @@ func embeddingAccess(w http.ResponseWriter, r *http.Request) bool {
 		if secure {
 			sameSite = http.SameSiteNoneMode
 		}
-		http.SetCookie(w, &http.Cookie{Name: "px0_embed", Value: embedding.token, Path: "/", HttpOnly: true, Secure: secure, SameSite: sameSite, Partitioned: secure})
+		http.SetCookie(w, &http.Cookie{Name: embeddingCookieName(), Value: embedding.token, Path: "/", HttpOnly: true, Secure: secure, SameSite: sameSite, Partitioned: secure})
 		q := r.URL.Query()
 		q.Del("px0_token")
 		next := *r.URL
@@ -74,7 +82,7 @@ func embeddingAccess(w http.ResponseWriter, r *http.Request) bool {
 	if matches(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")) {
 		return true
 	}
-	if c, err := r.Cookie("px0_embed"); err == nil && matches(c.Value) {
+	if c, err := r.Cookie(embeddingCookieName()); err == nil && matches(c.Value) {
 		return true
 	}
 	http.Error(w, "unauthorized", http.StatusUnauthorized)
